@@ -2,262 +2,218 @@ import Pacman from "./Pacman.js";
 import Enemy from "./Enemy.js";
 import MovingDirection from "./MovingDirection.js";
 
-export default class TileMap{
-    constructor(tileSize){
+export default class TileMap {
+  constructor(tileSize) {
     this.tileSize = tileSize;
-    
+
     this.yellowDot = new Image();
-    this.yellowDot.src = "./image1/yellowDot.png"; //import form yellowDot photo
+    this.yellowDot.src = "./image1/yellowDot.png";
 
     this.pinkDot = new Image();
     this.pinkDot.src = "./image1/pinkDot.png";
 
     this.wall = new Image();
-    this.wall.src = "./image1/wall.png"; //import form wall photo
+    this.wall.src = "./image1/wall.png";
 
-    this.powerDot = this.pinkDot; 
-    this.powerDotAnmationTimerDefault = 30; //dot flash animation (speed)
+    this.powerDot = this.pinkDot;
+    this.powerDotAnmationTimerDefault = 30;
     this.powerDotAnmationTimer = this.powerDotAnmationTimerDefault;
 
-    }
-/**
- * Using arrays to draw the map
- * 1 = brick/wall
- * 0 = Dots
- * 4 = pac-man
- * 5 = empty space
- * 6 = enemies
- * 7 = power dot (so Pacman can eat the ghost by eating this)
- */
-    map = [
-        
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 7, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
-            [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 7, 0, 1, 0, 1, 0, 1, 1],
-            [1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 6, 6, 6, 6, 0, 0, 1, 0, 1, 0, 0, 1],
-            [1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 7, 0, 0, 0, 0, 1],
-            [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1],
-            [1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
-            [1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-            [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 7, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-        
-    ];
-    
-    draw(ctx){
-        //number of arrays in the map here
-        for (let row=0; row < this.map.length; row++){
-            for(let column=0; column < this.map[row].length; column++){
-                let tile = this.map [row][column];
-                //draw the wall
-                if(tile===1){
-                    this.#drawWall(ctx,column,row,this.tileSize);
-                }
-                // draw the color for the Dots
-                else if (tile === 0){
-                    this.#drawDot(ctx, column, row, this.tileSize);
-                } else if (tile == 7) {
-                    this.#drawPowerDot(ctx, column, row, this.tileSize);
-                } else {
-                    this.#drawBlank(ctx, column, row, this.tileSize); // Draw a black rectangle for 5(empty space)
-                  }
-            }
-        }
-    }
+    this.editCooldownMs = 600;
+    this.lastEditAt = new Map();
 
-    // draw the Dots , array number : 0
-    #drawDot(ctx, column, row, size) { 
-        // size represent width and height, so 2 times here
-        ctx.drawImage(
-        this.yellowDot,
-        column * this.tileSize,
-        row * this.tileSize,
-        size,
-        size
-      );
-    }
+    this.wallStock = 0;
+    this.blockers = new Set();
+  }
 
-    #drawPowerDot(ctx, column, row, size) {
-        this.powerDotAnmationTimer--;
-         // If the timer reaches 0, reset it and toggle the power dot's color
-        if (this.powerDotAnmationTimer === 0) {
-          this.powerDotAnmationTimer = this.powerDotAnmationTimerDefault; // Reset the timer to its default(back to 30)
-          // Toggle between pink and yellow power dots
-          if (this.powerDot == this.pinkDot) {
-            this.powerDot = this.yellowDot; // Switch to yellow
-          } else {
-            this.powerDot = this.pinkDot; // Switch to pink
-          }
+  map = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 7, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
+    [1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 7, 0, 1, 0, 1, 0, 1, 1],
+    [1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1],
+    [1, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1],
+    [1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+    [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  ];
+
+  draw(ctx) {
+    for (let row = 0; row < this.map.length; row++) {
+      for (let col = 0; col < this.map[row].length; col++) {
+        const key = `${row},${col}`;
+        const tile = this.map[row][col];
+
+        if (tile === 1 || this.blockers.has(key)) {
+          this.#drawWall(ctx, col, row, this.tileSize);
+        } else if (tile === 0) {
+          this.#drawDot(ctx, col, row, this.tileSize);
+        } else if (tile === 7) {
+          this.#drawPowerDot(ctx, col, row, this.tileSize);
+        } else {
+          this.#drawBlank(ctx, col, row, this.tileSize);
         }
-        // Draw the current power dot
-        ctx.drawImage(this.powerDot, column * size, row * size, size, size);
       }
-
-    // draw the wall , array number : 1
-    #drawWall(ctx,column,row,size){
-        // size represent width and height, so 2 times here
-        ctx.drawImage(
-            this.wall,
-            column * this.tileSize,
-            row * this.tileSize,
-            size,
-            size
-          );
     }
+  }
 
-    // Draw a black rectangle when we eat the dots / had a collision with the dots
-    #drawBlank(ctx, column, row, size) {
-        ctx.fillStyle = "black"; // Like the canvas color
-        ctx.fillRect(column * this.tileSize, row * this.tileSize, size, size);
-      }
+  #drawDot(ctx, col, row, size) {
+    ctx.drawImage(this.yellowDot, col * size, row * size, size, size);
+  }
 
-    // build Pacman
-    getPacman(velocity){
-        // Iterate over each row of the map
-        for (let row = 0; row < this.map.length; row++) {
-            // Traverse each column of the current row
-            for (let column = 0; column < this.map[row].length; column++){
-                let tile = this.map[row][column]; // Get the map element of the current location
-                // If we find a map element with value 4 (indicating Pac-Man's starting position)
-                if (tile === 4) {
-                    this.map[row][column] = 0;
-                    return new Pacman(
-                        column * this.tileSize,
-                        row * this.tileSize,
-                        this.tileSize,
-                        velocity,
-                        this
-                      );
-                }
-            }
+  #drawWall(ctx, col, row, size) {
+    ctx.drawImage(this.wall, col * size, row * size, size, size);
+  }
+
+  #drawPowerDot(ctx, col, row, size) {
+    this.powerDotAnmationTimer--;
+    if (this.powerDotAnmationTimer === 0) {
+      this.powerDotAnmationTimer = this.powerDotAnmationTimerDefault;
+      this.powerDot = this.powerDot === this.pinkDot ? this.yellowDot : this.pinkDot;
+    }
+    ctx.drawImage(this.powerDot, col * size, row * size, size, size);
+  }
+
+  #drawBlank(ctx, col, row, size) {
+    ctx.fillStyle = "black";
+    ctx.fillRect(col * size, row * size, size, size);
+  }
+
+  getPacman(velocity) {
+    for (let row = 0; row < this.map.length; row++) {
+      for (let col = 0; col < this.map[row].length; col++) {
+        if (this.map[row][col] === 4) {
+          this.map[row][col] = 0;
+          return new Pacman(col * this.tileSize, row * this.tileSize, this.tileSize, velocity, this);
         }
-    }
-
-    // build enemy
-    getEnemies(velocity) {
-        const enemies = []; // Initialize an empty array to store the enemy 
-
-        for (let row = 0; row < this.map.length; row++) {
-            for (let column = 0; column < this.map[row].length; column++) {
-                const tile = this.map[row][column]; 
-                // check if the tile is an enemy (6)
-                if (tile == 6) {
-                    this.map[row][column] = 0; // Reset the tile to an empty space (value 0)
-                     // Create a new enemy object and add it to the array
-                    enemies.push(
-                        new Enemy(
-                          column * this.tileSize,
-                          row * this.tileSize,
-                          this.tileSize,
-                          velocity,
-                          this
-                        )
-                    );
-                }
-            }
-        }
-        return enemies; // Return the array of created enemy
-    }
-
-    setCanvasSize(canvas) {
-        canvas.width = this.map[0].length * this.tileSize; //20 bricks from arrays = width of the map
-        canvas.height = this.map.length * this.tileSize; // 17 bricks from arrays = height of the map
-    }
-
-    // Check if Pacman collides with the environment
-    didCollideWithEnvironment(x, y, direction) {
-
-        if (direction == null) {
-            return;
-          }
-
-        // Check if it is in the square
-        if (
-            Number.isInteger(x / this.tileSize) &&
-            Number.isInteger(y / this.tileSize)
-          ) {
-            let column = 0;
-            let row = 0;
-            let nextColumn = 0;
-            let nextRow = 0;
-
-            switch (direction) {
-                case MovingDirection.right: // If the movement direction is right
-                  nextColumn = x + this.tileSize; // Calculate the column of the next position (x coordinate plus a tileSize)
-                  column = nextColumn / this.tileSize; // Divide the new column position by tileSize to get the column index
-                  row = y / this.tileSize; // Calculate the row index using the current y coordinate
-                  break;
-                case MovingDirection.left:
-                  nextColumn = x - this.tileSize;
-                  column = nextColumn / this.tileSize;
-                  row = y / this.tileSize;
-                  break;
-                case MovingDirection.up:
-                  nextRow = y - this.tileSize;
-                  row = nextRow / this.tileSize;
-                  column = x / this.tileSize;
-                  break;
-                case MovingDirection.down:
-                  nextRow = y + this.tileSize;
-                  row = nextRow / this.tileSize;
-                  column = x / this.tileSize;
-                  break;
-              }
-            // Get the tile type of the current position
-            const tile = this.map[row][column];
-            // If the current position is a wall (tile === 1), a collision has occurred
-            if (tile === 1) {
-            return true; // Return true, indicating a collision occurred
-            }
       }
-      return false; // If there is no collision, return false
     }
+  }
 
-    // Eat dot (Pacman)
-    eatDot(x, y) {
-        const row = y / this.tileSize; // To figure out the row
-        const column = x / this.tileSize; // To figure out the column
+  getEnemies(velocity) {
+  const enemies = [];
 
-        // check if it's in a square
-        if (Number.isInteger(row) && Number.isInteger(column)) {
-          if (this.map[row][column] === 0) {
-            this.map[row][column] = 5; // set to an empty space
-            return true; // If player eat a dot, draw rectangle
-          }
-        }
-        return false; // If not, don't draw
+  for (let row = 0; row < this.map.length; row++) {
+    for (let col = 0; col < this.map[row].length; col++) {
+      const tile = this.map[row][col];
+      if (tile === 6) {
+        this.map[row][col] = 0;
+        enemies.push(new Enemy(col * this.tileSize, row * this.tileSize, this.tileSize, velocity, this));
       }
+    }
+  }
 
-    // Eat Power dot (Pacman)
-    eatPowerDot(x, y) {
+  if (enemies.length === 0) {
+    const row = Math.floor(this.map.length / 2);
+    const col = Math.floor(this.map[0].length / 2);
+    enemies.push(new Enemy(col * this.tileSize, row * this.tileSize, this.tileSize, velocity, this));
+    enemies.push(new Enemy((col - 1) * this.tileSize, row * this.tileSize, this.tileSize, velocity, this));
+    enemies.push(new Enemy((col + 1) * this.tileSize, row * this.tileSize, this.tileSize, velocity, this));
+    enemies.push(new Enemy(col * this.tileSize, (row - 1) * this.tileSize, this.tileSize, velocity, this));
+  }
+
+  return enemies;
+}
+
+
+  setCanvasSize(canvas) {
+    canvas.width = this.map[0].length * this.tileSize;
+    canvas.height = this.map.length * this.tileSize;
+  }
+
+  #isBorder(row, col) {
+    return row === 0 || col === 0 || row === this.map.length - 1 || col === this.map[0].length - 1;
+  }
+
+  #isBlockedTile(row, col) {
+    const key = `${row},${col}`;
+    return this.map[row][col] === 1 || this.blockers.has(key);
+  }
+
+  didCollideWithEnvironment(x, y, direction) {
+    if (direction == null) return;
+
+    if (!Number.isInteger(x / this.tileSize) || !Number.isInteger(y / this.tileSize)) return false;
+
+    let col = x / this.tileSize;
+    let row = y / this.tileSize;
+
+    if (direction === MovingDirection.right) col = (x + this.tileSize) / this.tileSize;
+    else if (direction === MovingDirection.left) col = (x - this.tileSize) / this.tileSize;
+    else if (direction === MovingDirection.up) row = (y - this.tileSize) / this.tileSize;
+    else if (direction === MovingDirection.down) row = (y + this.tileSize) / this.tileSize;
+
+    if (row < 0 || col < 0 || row >= this.map.length || col >= this.map[0].length) return true;
+    return this.#isBlockedTile(row, col);
+  }
+
+  eatDot(x, y) {
     const row = y / this.tileSize;
-    const column = x / this.tileSize;
-    // check if pacman is in a square
-    if (Number.isInteger(row) && Number.isInteger(column)) {
-      const tile = this.map[row][column];
-      // check if it's power dot
-      if (tile === 7) {
-        this.map[row][column] = 5; //replace it by empty space
-        return true; 
-      }
+    const col = x / this.tileSize;
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+
+    if (this.blockers.has(`${row},${col}`)) return false;
+
+    if (this.map[row][col] === 0) {
+      this.map[row][col] = 5;
+      return true;
     }
-    return false; // hasn't been eaten so false, keep 7
+    return false;
   }
 
-    //condition for game win
-    didWin() {
-      return this.#dotsLeft() === 0; // number of dot left = 0
+  eatPowerDot(x, y) {
+    const row = y / this.tileSize;
+    const col = x / this.tileSize;
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+
+    if (this.blockers.has(`${row},${col}`)) return false;
+
+    if (this.map[row][col] === 7) {
+      this.map[row][col] = 5;
+      return true;
+    }
+    return false;
   }
 
-    #dotsLeft() {
-    // Flatten the map into a single array and count how many tiles have a value of 0 (dots)
-      return this.map.flat().filter((tile) => tile === 0).length;
+  didWin() {
+    return this.map.flat().filter((t) => t === 0).length === 0;
+  }
+
+  tryEditWall(row, col, nowMs = performance.now()) {
+    if (row < 0 || col < 0 || row >= this.map.length || col >= this.map[0].length) return { ok: false };
+    if (this.#isBorder(row, col)) return { ok: false };
+
+    const key = `${row},${col}`;
+    const last = this.lastEditAt.get(key) ?? -Infinity;
+    if (nowMs - last < this.editCooldownMs) return { ok: false, reason: "cooldown" };
+
+    if (this.map[row][col] === 1) {
+      this.map[row][col] = 5;
+      this.wallStock++;
+      this.lastEditAt.set(key, nowMs);
+      return { ok: true, action: "pickup", stock: this.wallStock };
+    }
+
+    if (this.blockers.has(key)) {
+      this.blockers.delete(key);
+      this.wallStock++;
+      this.lastEditAt.set(key, nowMs);
+      return { ok: true, action: "pickup", stock: this.wallStock };
+    }
+
+    if (this.wallStock <= 0) return { ok: false, reason: "no_stock" };
+
+    this.blockers.add(key);
+    this.wallStock--;
+    this.lastEditAt.set(key, nowMs);
+    return { ok: true, action: "place", stock: this.wallStock };
   }
 }
